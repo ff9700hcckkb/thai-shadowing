@@ -80,17 +80,34 @@ function pick(){
 if("speechSynthesis" in window){pick();speechSynthesis.onvoiceschanged=pick}
 
 function say(text,row){
-  if(!("speechSynthesis" in window)){$("voiceMsg").style.display="block";return}
-  speechSynthesis.cancel();
+  if(!("speechSynthesis" in window)){showErr("這個瀏覽器不支援語音朗讀，請改用 Safari（iPhone）或 Chrome（Android），不要用 LINE／FB 內建瀏覽器。");return}
+  showErr("");
+  var ss=window.speechSynthesis;
+  ss.cancel();
   if(playing)playing.classList.remove("on");
+  if(!voice)pick();
   var u=new SpeechSynthesisUtterance(text.replace(/\.\.\./g,""));
   u.lang="th-TH";if(voice)u.voice=voice;
   u.rate=parseFloat($("rate").value);
+  var started=false;
   row.classList.add("on");playing=row;
-  u.onend=u.onerror=function(){row.classList.remove("on")};
-  speechSynthesis.speak(u);
+  u.onstart=function(){started=true};
+  u.onend=function(){row.classList.remove("on")};
+  u.onerror=function(e){
+    row.classList.remove("on");
+    if(e.error!=="canceled"&&e.error!=="interrupted")showErr("朗讀失敗（"+e.error+"）。請確認已安裝泰文語音。");
+  };
+  setTimeout(function(){
+    ss.speak(u);
+    if(ss.paused)ss.resume();
+    setTimeout(function(){
+      if(!started&&!ss.speaking){
+        row.classList.remove("on");
+        showErr("沒有聲音。請檢查：1) 手機未開靜音（iPhone 側邊靜音鈕）、媒體音量已調高；2) 已安裝泰文語音；3) 用 Safari／Chrome 開啟。");
+      }
+    },1500);
+  },80);
 }
-
 function render(){
   var L=$("list");L.innerHTML="";
   var w=mode==="word";
