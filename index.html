@@ -62,7 +62,7 @@ function parse(text){
     l=l.trim();var m;
     if((m=l.match(/^\d+\s*[.．、]\s*(.+?)\s*[：:]\s*(.*)$/))){
       var rest=m[2].split(/\s+/);
-      cur={w:m[1],pos:rest.shift()||"",zh:rest.join(" "),s:"",t:""};
+      cur={w:m[1],pos:rest.shift()||"",zh:rest.join(" ").replace(/\s+\d+$/,""),s:"",t:""};
       out.push(cur);
     }else if(cur&&(m=l.match(/^泰文例句\s*[：:]\s*(.+)$/))){cur.s=m[1]}
     else if(cur&&(m=l.match(/^中文翻譯\s*[：:]\s*(.+)$/))){cur.t=m[1]}
@@ -149,9 +149,17 @@ $("mWord").onclick=function(){setMode("word")};
 $("mSent").onclick=function(){setMode("sent")};
 $("src").onchange=function(){load(this.value)};
 
-fetch("data/index.json").then(function(r){
-  if(!r.ok)throw new Error(r.status);return r.json();
-}).then(function(names){
+function listSources(){
+  var m=location.hostname.match(/^(.+)\.github\.io$/);
+  var repo=location.pathname.split("/")[1]||location.hostname;
+  var viaIndex=function(){return fetch("data/index.json",{cache:"no-cache"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})};
+  if(!m)return viaIndex();
+  return fetch("https://api.github.com/repos/"+m[1]+"/"+repo+"/contents/data")
+    .then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
+    .then(function(a){return a.map(function(f){return f.name}).filter(function(n){return /\.txt$/i.test(n)}).sort()})
+    .catch(viaIndex);
+}
+listSources().then(function(names){
   var s=$("src"),saved=null;
   try{saved=localStorage.getItem("thai-src")}catch(e){}
   names.forEach(function(n){
@@ -160,7 +168,7 @@ fetch("data/index.json").then(function(r){
   if(!names.length){showErr("data/ 資料夾裡還沒有 txt 檔。");return}
   if(saved&&names.indexOf(saved)>-1)s.value=saved;
   load(s.value);
-}).catch(function(){showErr("找不到 data/index.json。請確認已放入 txt 並完成部署（本機預覽請用 http server，不能直接開檔案）。")});
+}).catch(function(){showErr("讀不到來源清單。請確認 data/ 資料夾有 txt 檔且已完成部署（本機預覽請用 http server）。")});
 </script>
 </body>
 </html>
